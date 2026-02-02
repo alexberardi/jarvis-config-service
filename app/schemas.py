@@ -7,7 +7,7 @@ class ServiceBase(BaseModel):
     name: str = Field(..., min_length=1, max_length=64)
     host: str = Field(..., min_length=1, max_length=255)
     port: int = Field(..., ge=1, le=65535)
-    scheme: str = Field(default="http", pattern="^https?$", max_length=10)
+    scheme: str = Field(default="http", pattern="^(https?|mqtts?)$", max_length=10)
     health_path: str = Field(default="/health", max_length=255)
     description: Optional[str] = Field(default=None, max_length=500)
 
@@ -19,7 +19,7 @@ class ServiceCreate(ServiceBase):
 class ServiceUpdate(BaseModel):
     host: Optional[str] = Field(default=None, min_length=1, max_length=255)
     port: Optional[int] = Field(default=None, ge=1, le=65535)
-    scheme: Optional[str] = Field(default=None, pattern="^https?$", max_length=10)
+    scheme: Optional[str] = Field(default=None, pattern="^(https?|mqtts?)$", max_length=10)
     health_path: Optional[str] = Field(default=None, max_length=255)
     description: Optional[str] = Field(default=None, max_length=500)
 
