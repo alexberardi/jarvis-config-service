@@ -99,10 +99,10 @@ async def check_all_services_health(db: Session = Depends(get_db)):
                     healthy=False,
                     error="Timeout"
                 )
-            except Exception as e:
+            except httpx.RequestError as e:
                 results[service.name] = ServiceHealthStatus(
                     healthy=False,
-                    error=str(e)
+                    error=f"{type(e).__name__}: {e}"
                 )
     
     return AllServicesHealthResponse(
@@ -172,8 +172,8 @@ async def check_service_health(name: str, db: Session = Depends(get_db)):
             return ServiceHealthStatus(healthy=False, error="Connection refused")
         except httpx.TimeoutException:
             return ServiceHealthStatus(healthy=False, error="Timeout")
-        except Exception as e:
-            return ServiceHealthStatus(healthy=False, error=str(e))
+        except httpx.RequestError as e:
+            return ServiceHealthStatus(healthy=False, error=f"{type(e).__name__}: {e}")
 
 
 @router.post("", response_model=ServiceResponse, status_code=status.HTTP_201_CREATED)
