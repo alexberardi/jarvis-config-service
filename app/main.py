@@ -1,4 +1,6 @@
 from contextlib import asynccontextmanager
+
+import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -42,6 +44,5 @@ def health():
 
 
 if __name__ == "__main__":
-    import uvicorn
     settings = get_settings()
     uvicorn.run(app, host=settings.HOST, port=settings.PORT)
