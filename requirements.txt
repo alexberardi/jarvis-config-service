@@ -5,6 +5,8 @@ psycopg2-binary>=2.9.9
 httpx>=0.26.0
 pydantic>=2.5.0
 alembic>=1.13.0
+jarvis-settings-client
+python-dotenv>=1.0.0
 
 # Testing
 pytest>=7.0.0

@@ -3,10 +3,13 @@ from contextlib import asynccontextmanager
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from jarvis_settings_client import create_settings_router
 
+from app.auth import require_admin
+from app.config import get_settings
 from app.database import engine, Base
 from app.routes import services_router
-from app.config import get_settings
+from app.services.settings_service import get_settings_service
 
 
 @asynccontextmanager
@@ -35,6 +38,13 @@ app.add_middleware(
 
 # Routes
 app.include_router(services_router)
+
+# Settings routes (admin auth)
+_settings_router = create_settings_router(
+    service=get_settings_service(),
+    auth_dependency=require_admin,
+)
+app.include_router(_settings_router, prefix="/v1/settings", tags=["settings"])
 
 
 @app.get("/health")
