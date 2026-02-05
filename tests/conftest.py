@@ -72,15 +72,34 @@ def admin_headers():
 
 
 @pytest.fixture
+def invalid_admin_headers():
+    """Headers with invalid admin token."""
+    return {"X-Admin-Token": "wrong-token"}
+
+
+@pytest.fixture
 def sample_service_data():
     """Sample service data for creating services."""
     return {
-        "name": "jarvis-test",
+        "name": "test_service",
         "host": "localhost",
-        "port": 8099,
+        "port": 8080,
         "scheme": "http",
         "health_path": "/health",
-        "description": "Test service",
+        "description": "A test service",
+    }
+
+
+@pytest.fixture
+def another_service_data():
+    """Another sample service for testing multiple services."""
+    return {
+        "name": "another_service",
+        "host": "192.168.1.100",
+        "port": 9000,
+        "scheme": "https",
+        "health_path": "/api/health",
+        "description": "Another test service",
     }
 
 
