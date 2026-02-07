@@ -16,7 +16,7 @@ if [[ "$1" == "--docker" ]]; then
     fi
 
     echo "Starting jarvis-config-service stack..."
-    docker compose --env-file .env up $BUILD_FLAGS
+    docker compose --env-file .env up $BUILD_FLAGS -d
 else
     # Local development mode
     if [ -f .env ]; then
