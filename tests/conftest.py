@@ -5,6 +5,8 @@ import os
 # Set test environment BEFORE importing app modules
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["JARVIS_CONFIG_ADMIN_TOKEN"] = "test-admin-token"
+os.environ["JARVIS_AUTH_BASE_URL"] = "http://localhost:8007"
+os.environ["JARVIS_AUTH_ADMIN_TOKEN"] = "test-auth-admin-token"
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,7 +16,7 @@ from sqlalchemy.pool import StaticPool
 
 # Now import app modules after env is set
 from app.database import Base, get_db
-from app.main import app
+from app.main import app, superuser_auth
 from app.models import Service
 
 
@@ -34,6 +36,11 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
 
 
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+
+def _mock_superuser_auth():
+    """Mock superuser auth that always succeeds."""
+    return {"auth_type": "superuser_jwt", "user_id": 1, "email": "admin@test.com"}
 
 
 @pytest.fixture(scope="function")
@@ -58,6 +65,7 @@ def client(db_session):
             pass
 
     app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[superuser_auth] = _mock_superuser_auth
 
     with TestClient(app) as test_client:
         yield test_client

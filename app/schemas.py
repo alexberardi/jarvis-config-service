@@ -47,3 +47,105 @@ class AllServicesHealthResponse(BaseModel):
     services: dict[str, ServiceHealthStatus]
     healthy_count: int
     total_count: int
+
+
+# ── Settings Gateway ──
+
+
+class ServiceSettingsResult(BaseModel):
+    service_name: str
+    success: bool
+    settings: list[dict]
+    error: Optional[str] = None
+    latency_ms: Optional[float] = None
+
+
+class AggregatedSettingsResponse(BaseModel):
+    services: list[ServiceSettingsResult]
+    total_services: int
+    successful_services: int
+    failed_services: int
+
+
+class ServiceUpdateResponse(BaseModel):
+    service_name: str
+    success: bool
+    key: str
+    requires_reload: bool
+    message: Optional[str] = None
+    error: Optional[str] = None
+
+
+# ── Service Registration ──
+
+
+class KnownServiceEntry(BaseModel):
+    name: str
+    default_port: int
+    description: str
+    health_path: str
+    config_registered: bool
+    auth_registered: bool
+    current_host: Optional[str] = None
+    current_port: Optional[int] = None
+
+
+class ServiceRegistryResponse(BaseModel):
+    services: list[KnownServiceEntry]
+
+
+class ServiceRegisterItem(BaseModel):
+    name: str = Field(..., min_length=1, max_length=64)
+    host: str = Field(default="localhost", min_length=1, max_length=255)
+    port: int = Field(..., ge=1, le=65535)
+
+
+class ServiceRegisterRequest(BaseModel):
+    services: list[ServiceRegisterItem]
+    base_path: Optional[str] = Field(
+        default=None,
+        description="Base directory for Jarvis services (e.g. /home/alex/jarvis). "
+        "When set, writes JARVIS_APP_ID and JARVIS_APP_KEY to each service's .env file.",
+    )
+
+
+class ServiceRegisterResult(BaseModel):
+    name: str
+    config_ok: bool
+    auth_ok: bool
+    auth_created: bool
+    app_key: Optional[str] = None
+    env_written: Optional[bool] = None
+    error: Optional[str] = None
+
+
+class ServiceRegisterResponse(BaseModel):
+    results: list[ServiceRegisterResult]
+
+
+class HealthProbeRequest(BaseModel):
+    host: str = Field(..., min_length=1, max_length=255)
+    port: int = Field(..., ge=1, le=65535)
+    health_path: str = Field(default="/health", max_length=255)
+    scheme: str = Field(default="http", pattern="^https?$", max_length=5)
+
+
+class HealthProbeResponse(BaseModel):
+    healthy: bool
+    latency_ms: float | None = None
+    error: str | None = None
+
+
+class KeyRotateRequest(BaseModel):
+    service_name: str = Field(..., min_length=1, max_length=64)
+    base_path: Optional[str] = Field(
+        default=None,
+        description="Base directory for Jarvis services. "
+        "When set, writes the new JARVIS_APP_KEY to the service's .env file.",
+    )
+
+
+class KeyRotateResponse(BaseModel):
+    service_name: str
+    app_key: str
+    env_written: Optional[bool] = None
