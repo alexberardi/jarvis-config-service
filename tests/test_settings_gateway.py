@@ -44,14 +44,14 @@ def _make_update_response(key: str = "model.name", requires_reload: bool = False
 def services_in_db(db_session):
     """Populate DB with a few services."""
     svc1 = Service(
-        name="jarvis-tts",
+        name="tts",
         host="localhost",
         port=8009,
         scheme="http",
         health_path="/health",
     )
     svc2 = Service(
-        name="jarvis-logs",
+        name="logs",
         host="localhost",
         port=8006,
         scheme="http",
@@ -85,7 +85,7 @@ class TestGetAggregatedSettings:
         assert len(data["services"]) == 2
 
         names = {s["service_name"] for s in data["services"]}
-        assert names == {"jarvis-tts", "jarvis-logs"}
+        assert names == {"tts", "logs"}
 
         for svc in data["services"]:
             assert svc["success"] is True
@@ -99,12 +99,12 @@ class TestGetAggregatedSettings:
         """Should filter to a single service when ?service= is provided."""
         mock_get.return_value = _make_settings_response()
 
-        resp = client.get("/v1/settings/?service=jarvis-tts")
+        resp = client.get("/v1/settings/?service=tts")
         assert resp.status_code == 200
 
         data = resp.json()
         assert data["total_services"] == 1
-        assert data["services"][0]["service_name"] == "jarvis-tts"
+        assert data["services"][0]["service_name"] == "tts"
 
     def test_filter_unknown_service_returns_404(self, client: TestClient, services_in_db):
         """Should return 404 when filtering to a service not in registry."""
@@ -224,13 +224,13 @@ class TestUpdateServiceSetting:
         mock_put.return_value = _make_update_response()
 
         resp = client.put(
-            "/v1/settings/jarvis-tts/model.name",
+            "/v1/settings/tts/model.name",
             json={"value": "gpt-4o"},
         )
         assert resp.status_code == 200
 
         data = resp.json()
-        assert data["service_name"] == "jarvis-tts"
+        assert data["service_name"] == "tts"
         assert data["success"] is True
         assert data["key"] == "model.name"
         assert data["requires_reload"] is False
@@ -243,7 +243,7 @@ class TestUpdateServiceSetting:
         mock_put.return_value = _make_update_response(requires_reload=True)
 
         resp = client.put(
-            "/v1/settings/jarvis-tts/model.name",
+            "/v1/settings/tts/model.name",
             json={"value": "new-value"},
         )
         assert resp.status_code == 200
@@ -267,7 +267,7 @@ class TestUpdateServiceSetting:
         mock_put.side_effect = httpx.ConnectError("Connection refused")
 
         resp = client.put(
-            "/v1/settings/jarvis-tts/model.name",
+            "/v1/settings/tts/model.name",
             json={"value": "x"},
         )
         assert resp.status_code == 200
@@ -284,7 +284,7 @@ class TestUpdateServiceSetting:
         mock_put.return_value = _make_update_response()
 
         resp = client.put(
-            "/v1/settings/jarvis-tts/model.name",
+            "/v1/settings/tts/model.name",
             json={"value": "x"},
             headers={"Authorization": "Bearer test-jwt-token"},
         )
@@ -305,7 +305,7 @@ class TestUpdateServiceSetting:
         )
 
         resp = client.put(
-            "/v1/settings/jarvis-tts/model.name",
+            "/v1/settings/tts/model.name",
             json={"value": "x"},
         )
         assert resp.status_code == 200
@@ -322,7 +322,7 @@ class TestUpdateServiceSetting:
         mock_put.return_value = _make_update_response(key="tts.voice.model")
 
         resp = client.put(
-            "/v1/settings/jarvis-tts/tts.voice.model",
+            "/v1/settings/tts/tts.voice.model",
             json={"value": "alan"},
         )
         assert resp.status_code == 200

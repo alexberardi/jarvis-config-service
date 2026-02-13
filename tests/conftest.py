@@ -115,7 +115,7 @@ def another_service_data():
 def sample_service(db_session) -> Service:
     """Create a sample service in the database."""
     service = Service(
-        name="jarvis-logs",
+        name="logs",
         host="localhost",
         port=8006,
         scheme="http",

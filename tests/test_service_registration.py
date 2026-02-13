@@ -72,7 +72,7 @@ class TestGetServiceRegistry:
     def test_shows_config_registered_when_in_db(self, client, db_session):
         """Services in the config DB show config_registered=True."""
         svc = Service(
-            name="jarvis-logs", host="localhost", port=8006,
+            name="logs", host="localhost", port=8006,
             scheme="http", health_path="/health", description="Logging",
         )
         db_session.add(svc)
@@ -85,20 +85,20 @@ class TestGetServiceRegistry:
             resp = client.get("/v1/services/registry")
 
         data = resp.json()
-        logs_entry = next(s for s in data["services"] if s["name"] == "jarvis-logs")
+        logs_entry = next(s for s in data["services"] if s["name"] == "logs")
         assert logs_entry["config_registered"] is True
         assert logs_entry["current_host"] == "localhost"
         assert logs_entry["current_port"] == 8006
 
-        auth_entry = next(s for s in data["services"] if s["name"] == "jarvis-auth")
+        auth_entry = next(s for s in data["services"] if s["name"] == "auth")
         assert auth_entry["config_registered"] is False
         assert auth_entry["current_host"] is None
 
     def test_shows_auth_registered_when_in_auth(self, client):
-        """Services with an app-client in jarvis-auth show auth_registered=True."""
+        """Services with an app-client in auth show auth_registered=True."""
         auth_clients = [
-            {"app_id": "jarvis-logs", "name": "jarvis-logs", "is_active": True},
-            {"app_id": "jarvis-auth", "name": "jarvis-auth", "is_active": True},
+            {"app_id": "logs", "name": "logs", "is_active": True},
+            {"app_id": "auth", "name": "auth", "is_active": True},
         ]
 
         patcher, _ = _mock_async_client(
@@ -108,14 +108,14 @@ class TestGetServiceRegistry:
             resp = client.get("/v1/services/registry")
 
         data = resp.json()
-        logs_entry = next(s for s in data["services"] if s["name"] == "jarvis-logs")
+        logs_entry = next(s for s in data["services"] if s["name"] == "logs")
         assert logs_entry["auth_registered"] is True
 
-        tts_entry = next(s for s in data["services"] if s["name"] == "jarvis-tts")
+        tts_entry = next(s for s in data["services"] if s["name"] == "tts")
         assert tts_entry["auth_registered"] is False
 
     def test_auth_service_unreachable_still_returns(self, client):
-        """Registry still returns results when jarvis-auth is unreachable."""
+        """Registry still returns results when auth is unreachable."""
         patcher, _ = _mock_async_client(
             get_side_effect=httpx.ConnectError("Connection refused"),
         )
@@ -139,33 +139,33 @@ class TestRegisterServices:
         patcher, mock_inst = _mock_async_client(
             get_response=httpx.Response(200, json=[]),
             post_response=httpx.Response(
-                201, json={"app_id": "jarvis-logs", "key": "secret-key-123"},
+                201, json={"app_id": "logs", "key": "secret-key-123"},
             ),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/register",
-                json={"services": [{"name": "jarvis-logs", "host": "localhost", "port": 8006}]},
+                json={"services": [{"name": "logs", "host": "localhost", "port": 8006}]},
             )
 
         assert resp.status_code == 200
         results = resp.json()["results"]
         assert len(results) == 1
-        assert results[0]["name"] == "jarvis-logs"
+        assert results[0]["name"] == "logs"
         assert results[0]["config_ok"] is True
         assert results[0]["auth_ok"] is True
         assert results[0]["auth_created"] is True
         assert results[0]["app_key"] == "secret-key-123"
 
         # Verify config DB entry
-        svc = db_session.query(Service).filter(Service.name == "jarvis-logs").first()
+        svc = db_session.query(Service).filter(Service.name == "logs").first()
         assert svc is not None
         assert svc.port == 8006
 
     def test_register_updates_existing_config(self, client, db_session):
         """Re-registering a service updates the config DB row."""
         svc = Service(
-            name="jarvis-logs", host="localhost", port=8006,
+            name="logs", host="localhost", port=8006,
             scheme="http", health_path="/health",
         )
         db_session.add(svc)
@@ -173,13 +173,13 @@ class TestRegisterServices:
 
         patcher, _ = _mock_async_client(
             get_response=httpx.Response(
-                200, json=[{"app_id": "jarvis-logs"}],
+                200, json=[{"app_id": "logs"}],
             ),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/register",
-                json={"services": [{"name": "jarvis-logs", "host": "192.168.1.50", "port": 9006}]},
+                json={"services": [{"name": "logs", "host": "192.168.1.50", "port": 9006}]},
             )
 
         assert resp.status_code == 200
@@ -191,21 +191,21 @@ class TestRegisterServices:
 
         # Verify updated
         db_session.expire_all()
-        svc = db_session.query(Service).filter(Service.name == "jarvis-logs").first()
+        svc = db_session.query(Service).filter(Service.name == "logs").first()
         assert svc.host == "192.168.1.50"
         assert svc.port == 9006
 
     def test_register_skips_auth_if_already_exists(self, client, db_session):
-        """If app-client already exists in jarvis-auth, skip creation."""
+        """If app-client already exists in auth, skip creation."""
         patcher, mock_inst = _mock_async_client(
             get_response=httpx.Response(
-                200, json=[{"app_id": "jarvis-tts"}],
+                200, json=[{"app_id": "tts"}],
             ),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/register",
-                json={"services": [{"name": "jarvis-tts", "host": "localhost", "port": 8009}]},
+                json={"services": [{"name": "tts", "host": "localhost", "port": 8009}]},
             )
 
         assert resp.status_code == 200
@@ -229,8 +229,8 @@ class TestRegisterServices:
                 "/v1/services/register",
                 json={
                     "services": [
-                        {"name": "jarvis-logs", "host": "localhost", "port": 8006},
-                        {"name": "jarvis-tts", "host": "localhost", "port": 8009},
+                        {"name": "logs", "host": "localhost", "port": 8006},
+                        {"name": "tts", "host": "localhost", "port": 8009},
                     ]
                 },
             )
@@ -241,14 +241,14 @@ class TestRegisterServices:
         assert all(r["config_ok"] for r in results)
 
     def test_register_auth_service_down(self, client, db_session):
-        """Config DB succeeds even if jarvis-auth is unreachable."""
+        """Config DB succeeds even if auth is unreachable."""
         patcher, _ = _mock_async_client(
             get_side_effect=httpx.ConnectError("Connection refused"),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/register",
-                json={"services": [{"name": "jarvis-logs", "host": "localhost", "port": 8006}]},
+                json={"services": [{"name": "logs", "host": "localhost", "port": 8006}]},
             )
 
         assert resp.status_code == 200
@@ -258,7 +258,7 @@ class TestRegisterServices:
         assert results[0]["error"] is not None
 
         # Config DB entry still created
-        svc = db_session.query(Service).filter(Service.name == "jarvis-logs").first()
+        svc = db_session.query(Service).filter(Service.name == "logs").first()
         assert svc is not None
 
     def test_register_no_admin_token_configured(self, client):
@@ -268,7 +268,7 @@ class TestRegisterServices:
 
             resp = client.post(
                 "/v1/services/register",
-                json={"services": [{"name": "jarvis-logs", "host": "localhost", "port": 8006}]},
+                json={"services": [{"name": "logs", "host": "localhost", "port": 8006}]},
             )
 
         assert resp.status_code == 500
@@ -286,14 +286,14 @@ class TestEnvFileWriting:
         patcher, _ = _mock_async_client(
             get_response=httpx.Response(200, json=[]),
             post_response=httpx.Response(
-                201, json={"app_id": "jarvis-logs", "key": "new-secret-key"},
+                201, json={"app_id": "logs", "key": "new-secret-key"},
             ),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/register",
                 json={
-                    "services": [{"name": "jarvis-logs", "host": "localhost", "port": 8006}],
+                    "services": [{"name": "logs", "host": "localhost", "port": 8006}],
                     "base_path": str(tmp_path),
                 },
             )
@@ -302,15 +302,15 @@ class TestEnvFileWriting:
         results = resp.json()["results"]
         assert results[0]["env_written"] is True
 
-        env_file = tmp_path / "jarvis-logs" / ".env"
+        env_file = tmp_path / "logs" / ".env"
         assert env_file.exists()
         content = env_file.read_text()
-        assert "JARVIS_APP_ID=jarvis-logs" in content
+        assert "JARVIS_APP_ID=logs" in content
         assert "JARVIS_APP_KEY=new-secret-key" in content
 
     def test_appends_to_existing_env_file(self, client, db_session, tmp_path):
         """When .env already exists, appends new vars without overwriting."""
-        service_dir = tmp_path / "jarvis-tts"
+        service_dir = tmp_path / "tts"
         service_dir.mkdir()
         env_file = service_dir / ".env"
         env_file.write_text("DATABASE_URL=sqlite:///test.db\nPORT=8009\n")
@@ -318,14 +318,14 @@ class TestEnvFileWriting:
         patcher, _ = _mock_async_client(
             get_response=httpx.Response(200, json=[]),
             post_response=httpx.Response(
-                201, json={"app_id": "jarvis-tts", "key": "tts-key"},
+                201, json={"app_id": "tts", "key": "tts-key"},
             ),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/register",
                 json={
-                    "services": [{"name": "jarvis-tts", "host": "localhost", "port": 8009}],
+                    "services": [{"name": "tts", "host": "localhost", "port": 8009}],
                     "base_path": str(tmp_path),
                 },
             )
@@ -336,12 +336,12 @@ class TestEnvFileWriting:
         content = env_file.read_text()
         assert "DATABASE_URL=sqlite:///test.db" in content
         assert "PORT=8009" in content
-        assert "JARVIS_APP_ID=jarvis-tts" in content
+        assert "JARVIS_APP_ID=tts" in content
         assert "JARVIS_APP_KEY=tts-key" in content
 
     def test_updates_existing_env_vars_in_place(self, client, db_session, tmp_path):
         """When .env already has JARVIS_APP_ID/KEY, updates them in place."""
-        service_dir = tmp_path / "jarvis-logs"
+        service_dir = tmp_path / "logs"
         service_dir.mkdir()
         env_file = service_dir / ".env"
         env_file.write_text(
@@ -354,14 +354,14 @@ class TestEnvFileWriting:
         patcher, _ = _mock_async_client(
             get_response=httpx.Response(200, json=[]),
             post_response=httpx.Response(
-                201, json={"app_id": "jarvis-logs", "key": "new-key"},
+                201, json={"app_id": "logs", "key": "new-key"},
             ),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/register",
                 json={
-                    "services": [{"name": "jarvis-logs", "host": "localhost", "port": 8006}],
+                    "services": [{"name": "logs", "host": "localhost", "port": 8006}],
                     "base_path": str(tmp_path),
                 },
             )
@@ -370,7 +370,7 @@ class TestEnvFileWriting:
         assert results[0]["env_written"] is True
 
         content = env_file.read_text()
-        assert "JARVIS_APP_ID=jarvis-logs" in content
+        assert "JARVIS_APP_ID=logs" in content
         assert "JARVIS_APP_KEY=new-key" in content
         assert "old-id" not in content
         assert "old-key" not in content
@@ -382,13 +382,13 @@ class TestEnvFileWriting:
         patcher, _ = _mock_async_client(
             get_response=httpx.Response(200, json=[]),
             post_response=httpx.Response(
-                201, json={"app_id": "jarvis-logs", "key": "key"},
+                201, json={"app_id": "logs", "key": "key"},
             ),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/register",
-                json={"services": [{"name": "jarvis-logs", "host": "localhost", "port": 8006}]},
+                json={"services": [{"name": "logs", "host": "localhost", "port": 8006}]},
             )
 
         results = resp.json()["results"]
@@ -398,14 +398,14 @@ class TestEnvFileWriting:
         """When auth already exists (no new key), no .env write happens."""
         patcher, _ = _mock_async_client(
             get_response=httpx.Response(
-                200, json=[{"app_id": "jarvis-logs"}],
+                200, json=[{"app_id": "logs"}],
             ),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/register",
                 json={
-                    "services": [{"name": "jarvis-logs", "host": "localhost", "port": 8006}],
+                    "services": [{"name": "logs", "host": "localhost", "port": 8006}],
                     "base_path": str(tmp_path),
                 },
             )
@@ -414,7 +414,7 @@ class TestEnvFileWriting:
         # No new key was created, so no .env write
         assert results[0]["env_written"] is None
 
-        env_file = tmp_path / "jarvis-logs" / ".env"
+        env_file = tmp_path / "logs" / ".env"
         assert not env_file.exists()
 
 
@@ -428,37 +428,37 @@ class TestRotateKey:
         """Rotating a key returns the new app key."""
         patcher, mock_inst = _mock_async_client(
             post_response=httpx.Response(
-                200, json={"app_id": "jarvis-logs", "key": "rotated-key-456"},
+                200, json={"app_id": "logs", "key": "rotated-key-456"},
             ),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/rotate-key",
-                json={"service_name": "jarvis-logs"},
+                json={"service_name": "logs"},
             )
 
         assert resp.status_code == 200
         data = resp.json()
-        assert data["service_name"] == "jarvis-logs"
+        assert data["service_name"] == "logs"
         assert data["app_key"] == "rotated-key-456"
         assert data["env_written"] is None
 
     def test_rotate_key_writes_env(self, client, tmp_path):
         """Rotating with base_path writes the new key to .env."""
-        service_dir = tmp_path / "jarvis-logs"
+        service_dir = tmp_path / "logs"
         service_dir.mkdir()
         env_file = service_dir / ".env"
-        env_file.write_text("JARVIS_APP_ID=jarvis-logs\nJARVIS_APP_KEY=old-key\n")
+        env_file.write_text("JARVIS_APP_ID=logs\nJARVIS_APP_KEY=old-key\n")
 
         patcher, _ = _mock_async_client(
             post_response=httpx.Response(
-                200, json={"app_id": "jarvis-logs", "key": "rotated-key"},
+                200, json={"app_id": "logs", "key": "rotated-key"},
             ),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/rotate-key",
-                json={"service_name": "jarvis-logs", "base_path": str(tmp_path)},
+                json={"service_name": "logs", "base_path": str(tmp_path)},
             )
 
         assert resp.status_code == 200
@@ -471,14 +471,14 @@ class TestRotateKey:
         assert "old-key" not in content
 
     def test_rotate_key_auth_service_down(self, client):
-        """Returns 502 when jarvis-auth is unreachable."""
+        """Returns 502 when auth is unreachable."""
         patcher, _ = _mock_async_client(
             post_side_effect=httpx.ConnectError("Connection refused"),
         )
         with patcher:
             resp = client.post(
                 "/v1/services/rotate-key",
-                json={"service_name": "jarvis-logs"},
+                json={"service_name": "logs"},
             )
 
         assert resp.status_code == 502

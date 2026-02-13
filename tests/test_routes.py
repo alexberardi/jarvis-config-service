@@ -31,7 +31,7 @@ class TestListServices:
         assert response.status_code == 200
         data = response.json()
         assert len(data["services"]) == 1
-        assert data["services"][0]["name"] == "jarvis-logs"
+        assert data["services"][0]["name"] == "logs"
 
     def test_list_services_dockerized_style(self, client, sample_service):
         """Test listing services with dockerized URL style."""
@@ -46,10 +46,10 @@ class TestGetService:
 
     def test_get_service_found(self, client, sample_service):
         """Test getting an existing service."""
-        response = client.get("/services/jarvis-logs")
+        response = client.get("/services/logs")
         assert response.status_code == 200
         data = response.json()
-        assert data["name"] == "jarvis-logs"
+        assert data["name"] == "logs"
         assert data["port"] == 8006
         assert data["url"] == "http://localhost:8006"
 
@@ -61,7 +61,7 @@ class TestGetService:
 
     def test_get_service_dockerized_style(self, client, sample_service):
         """Test getting service with dockerized URL style."""
-        response = client.get("/services/jarvis-logs?style=dockerized")
+        response = client.get("/services/logs?style=dockerized")
         assert response.status_code == 200
         data = response.json()
         assert "host.docker.internal" in data["url"]
@@ -99,7 +99,7 @@ class TestCreateService:
         response = client.post(
             "/services",
             json={
-                "name": "jarvis-logs",  # Already exists
+                "name": "logs",  # Already exists
                 "host": "localhost",
                 "port": 9999,
             },
@@ -142,7 +142,7 @@ class TestUpdateService:
     def test_update_service_success(self, client, admin_headers, sample_service):
         """Test updating an existing service."""
         response = client.put(
-            "/services/jarvis-logs",
+            "/services/logs",
             json={"port": 9006, "description": "Updated logging service"},
             headers=admin_headers,
         )
@@ -162,7 +162,7 @@ class TestUpdateService:
 
     def test_update_service_requires_admin(self, client, sample_service):
         """Test updating service without admin token fails."""
-        response = client.put("/services/jarvis-logs", json={"port": 9999})
+        response = client.put("/services/logs", json={"port": 9999})
         assert response.status_code == 422
 
 
@@ -171,11 +171,11 @@ class TestDeleteService:
 
     def test_delete_service_success(self, client, admin_headers, sample_service):
         """Test deleting an existing service."""
-        response = client.delete("/services/jarvis-logs", headers=admin_headers)
+        response = client.delete("/services/logs", headers=admin_headers)
         assert response.status_code == 204
 
         # Verify it's gone
-        response = client.get("/services/jarvis-logs")
+        response = client.get("/services/logs")
         assert response.status_code == 404
 
     def test_delete_service_not_found(self, client, admin_headers):
@@ -185,7 +185,7 @@ class TestDeleteService:
 
     def test_delete_service_requires_admin(self, client, sample_service):
         """Test deleting service without admin token fails."""
-        response = client.delete("/services/jarvis-logs")
+        response = client.delete("/services/logs")
         assert response.status_code == 422
 
 
@@ -200,7 +200,7 @@ class TestServiceHealth:
             mock_response.status_code = 200
             mock_get.return_value = mock_response
 
-            response = client.get("/services/jarvis-logs/health")
+            response = client.get("/services/logs/health")
             assert response.status_code == 200
             data = response.json()
             assert data["healthy"] is True
@@ -213,7 +213,7 @@ class TestServiceHealth:
             mock_response.status_code = 500
             mock_get.return_value = mock_response
 
-            response = client.get("/services/jarvis-logs/health")
+            response = client.get("/services/logs/health")
             assert response.status_code == 200
             data = response.json()
             assert data["healthy"] is False
@@ -225,7 +225,7 @@ class TestServiceHealth:
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = httpx.ConnectError("Connection refused")
 
-            response = client.get("/services/jarvis-logs/health")
+            response = client.get("/services/logs/health")
             assert response.status_code == 200
             data = response.json()
             assert data["healthy"] is False
@@ -237,7 +237,7 @@ class TestServiceHealth:
         with patch("httpx.AsyncClient.get", new_callable=AsyncMock) as mock_get:
             mock_get.side_effect = httpx.TimeoutException("Timeout")
 
-            response = client.get("/services/jarvis-logs/health")
+            response = client.get("/services/logs/health")
             assert response.status_code == 200
             data = response.json()
             assert data["healthy"] is False
@@ -261,4 +261,4 @@ class TestServiceHealth:
             data = response.json()
             assert data["total_count"] == 1
             assert data["healthy_count"] == 1
-            assert "jarvis-logs" in data["services"]
+            assert "logs" in data["services"]
