@@ -5,12 +5,12 @@ WORKDIR /app
 # Install git (needed for pip git+https dependencies)
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
-# Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir --force-reinstall -r requirements.txt
-
 # Copy application
 COPY app/ app/
+
+# Install dependencies
+COPY pyproject.toml .
+RUN pip install --no-cache-dir .
 COPY alembic/ alembic/
 COPY alembic.ini .
 
