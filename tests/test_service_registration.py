@@ -8,7 +8,7 @@ import httpx
 # Ensure env is set before app imports
 os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 os.environ.setdefault("JARVIS_CONFIG_ADMIN_TOKEN", "test-admin-token")
-os.environ.setdefault("JARVIS_AUTH_BASE_URL", "http://localhost:8007")
+os.environ.setdefault("JARVIS_AUTH_URL", "http://localhost:8007")
 os.environ.setdefault("JARVIS_AUTH_ADMIN_TOKEN", "test-auth-admin-token")
 
 from app.known_services import KNOWN_SERVICES

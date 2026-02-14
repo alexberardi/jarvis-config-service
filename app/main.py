@@ -15,7 +15,7 @@ from app.services.settings_service import get_settings_service
 
 # Create superuser auth dependency (module-level so tests can override it)
 _cfg = get_settings()
-superuser_auth = create_superuser_auth(_cfg.JARVIS_AUTH_BASE_URL)
+superuser_auth = create_superuser_auth(_cfg.JARVIS_AUTH_URL)
 
 
 @asynccontextmanager

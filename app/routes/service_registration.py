@@ -1,12 +1,13 @@
 """Service registration router: bulk-register services in config DB and jarvis-auth."""
 
+import hmac
 import re
 import time
 from pathlib import Path
 from typing import Any, Callable
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -27,6 +28,32 @@ from app.schemas import (
 )
 
 
+async def _admin_token_or_superuser(
+    request: Request,
+    superuser_auth_dependency: Callable[..., Any],
+) -> dict:
+    """Accept either X-Jarvis-Admin-Token header or superuser JWT.
+
+    This allows first-boot registration before any users exist.
+    """
+    admin_token = request.headers.get("X-Jarvis-Admin-Token")
+    if admin_token:
+        settings = get_settings()
+        if not settings.JARVIS_AUTH_ADMIN_TOKEN:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="JARVIS_AUTH_ADMIN_TOKEN not configured on config-service",
+            )
+        if hmac.compare_digest(admin_token, settings.JARVIS_AUTH_ADMIN_TOKEN):
+            return {"sub": "admin-token", "is_superuser": True}
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid admin token",
+        )
+    # Fall back to superuser JWT
+    return await superuser_auth_dependency(request)
+
+
 def create_service_registration_router(
     superuser_auth_dependency: Callable[..., Any],
 ) -> APIRouter:
@@ -34,10 +61,13 @@ def create_service_registration_router(
 
     router = APIRouter(prefix="/v1/services", tags=["service-registration"])
 
+    async def either_auth(request: Request) -> dict:
+        return await _admin_token_or_superuser(request, superuser_auth_dependency)
+
     @router.get("/registry", response_model=ServiceRegistryResponse)
     async def get_service_registry(
         db: Session = Depends(get_db),
-        _user: dict = Depends(superuser_auth_dependency),
+        _user: dict = Depends(either_auth),
     ) -> ServiceRegistryResponse:
         """Return known services with their config-DB and auth registration status."""
         settings = get_settings()
@@ -53,7 +83,7 @@ def create_service_registration_router(
             try:
                 async with httpx.AsyncClient(timeout=5.0) as client:
                     resp = await client.get(
-                        f"{settings.JARVIS_AUTH_BASE_URL}/admin/app-clients",
+                        f"{settings.JARVIS_AUTH_URL}/admin/app-clients",
                         headers={"X-Jarvis-Admin-Token": settings.JARVIS_AUTH_ADMIN_TOKEN},
                     )
                     if resp.status_code == 200:
@@ -85,7 +115,7 @@ def create_service_registration_router(
     async def register_services(
         body: ServiceRegisterRequest,
         db: Session = Depends(get_db),
-        _user: dict = Depends(superuser_auth_dependency),
+        _user: dict = Depends(either_auth),
     ) -> ServiceRegisterResponse:
         """Bulk-register services in config DB and jarvis-auth."""
         settings = get_settings()
@@ -113,8 +143,12 @@ def create_service_registration_router(
 
             # Write .env file if base_path provided and we have an app_key
             if body.base_path and result.app_key:
+                # Derive config-service URL so each service gets JARVIS_CONFIG_URL
+                port = settings.PORT
+                config_url = f"http://localhost:{port}"
                 result.env_written = _write_env_file(
                     body.base_path, item.name, result.app_key, result,
+                    config_url=config_url,
                 )
 
             results.append(result)
@@ -124,7 +158,7 @@ def create_service_registration_router(
     @router.post("/rotate-key", response_model=KeyRotateResponse)
     async def rotate_service_key(
         body: KeyRotateRequest,
-        _user: dict = Depends(superuser_auth_dependency),
+        _user: dict = Depends(either_auth),
     ) -> KeyRotateResponse:
         """Rotate an app-client key in jarvis-auth, optionally write to .env."""
         settings = get_settings()
@@ -138,7 +172,7 @@ def create_service_registration_router(
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.post(
-                    f"{settings.JARVIS_AUTH_BASE_URL}/admin/app-clients/{body.service_name}/rotate",
+                    f"{settings.JARVIS_AUTH_URL}/admin/app-clients/{body.service_name}/rotate",
                     headers={"X-Jarvis-Admin-Token": settings.JARVIS_AUTH_ADMIN_TOKEN},
                 )
         except httpx.RequestError as exc:
@@ -177,7 +211,7 @@ def create_service_registration_router(
     @router.post("/probe", response_model=HealthProbeResponse)
     async def probe_service_health(
         body: HealthProbeRequest,
-        _user: dict = Depends(superuser_auth_dependency),
+        _user: dict = Depends(either_auth),
     ) -> HealthProbeResponse:
         """Probe a service's health endpoint at an arbitrary host:port."""
         settings = get_settings()
@@ -211,7 +245,7 @@ async def _fetch_auth_app_ids(settings: Any) -> set[str]:
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(
-                f"{settings.JARVIS_AUTH_BASE_URL}/admin/app-clients",
+                f"{settings.JARVIS_AUTH_URL}/admin/app-clients",
                 headers={"X-Jarvis-Admin-Token": settings.JARVIS_AUTH_ADMIN_TOKEN},
             )
             if resp.status_code == 200:
@@ -275,7 +309,7 @@ async def _register_one(
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 create_resp = await client.post(
-                    f"{settings.JARVIS_AUTH_BASE_URL}/admin/app-clients",
+                    f"{settings.JARVIS_AUTH_URL}/admin/app-clients",
                     json={"app_id": item.name, "name": item.name},
                     headers={"X-Jarvis-Admin-Token": settings.JARVIS_AUTH_ADMIN_TOKEN},
                 )
@@ -303,8 +337,9 @@ def _write_env_file(
     service_name: str,
     app_key: str,
     result: ServiceRegisterResult,
+    config_url: str | None = None,
 ) -> bool:
-    """Write or update JARVIS_APP_ID and JARVIS_APP_KEY in a service's .env file.
+    """Write or update JARVIS_APP_ID, JARVIS_APP_KEY, and JARVIS_CONFIG_URL in a service's .env file.
 
     Returns True on success, False on failure (appends error to result).
     """
@@ -313,10 +348,12 @@ def _write_env_file(
     try:
         env_path.parent.mkdir(parents=True, exist_ok=True)
 
-        new_vars = {
+        new_vars: dict[str, str] = {
             "JARVIS_APP_ID": service_name,
             "JARVIS_APP_KEY": app_key,
         }
+        if config_url:
+            new_vars["JARVIS_CONFIG_URL"] = config_url
 
         if env_path.exists():
             content = env_path.read_text()

@@ -6,7 +6,7 @@ class Settings:
     # Database URLs
     # DB_URL: used when running in Docker (host.docker.internal)
     # MIGRATIONS_DATABASE_URL: used for local dev and migrations (localhost)
-    DB_URL: str = os.getenv("DB_URL", "postgresql://postgres:postgres@localhost:5432/jarvis_config")
+    DB_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/jarvis_config")
     MIGRATIONS_DATABASE_URL: str = os.getenv("MIGRATIONS_DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/jarvis_config")
 
     ADMIN_TOKEN: str = os.getenv("JARVIS_CONFIG_ADMIN_TOKEN", "")
@@ -21,7 +21,7 @@ class Settings:
     JARVIS_APP_KEY: str = os.getenv("JARVIS_APP_KEY", "")
 
     # Auth service URL (for JWT validation)
-    JARVIS_AUTH_BASE_URL: str = os.getenv("JARVIS_AUTH_BASE_URL", "http://localhost:8007")
+    JARVIS_AUTH_URL: str = os.getenv("JARVIS_AUTH_URL", "http://localhost:8007")
 
     # Admin token for jarvis-auth admin endpoints (app-client management)
     JARVIS_AUTH_ADMIN_TOKEN: str = os.getenv("JARVIS_AUTH_ADMIN_TOKEN", "")

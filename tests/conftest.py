@@ -5,7 +5,7 @@ import os
 # Set test environment BEFORE importing app modules
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
 os.environ["JARVIS_CONFIG_ADMIN_TOKEN"] = "test-admin-token"
-os.environ["JARVIS_AUTH_BASE_URL"] = "http://localhost:8007"
+os.environ["JARVIS_AUTH_URL"] = "http://localhost:8007"
 os.environ["JARVIS_AUTH_ADMIN_TOKEN"] = "test-auth-admin-token"
 
 import pytest
