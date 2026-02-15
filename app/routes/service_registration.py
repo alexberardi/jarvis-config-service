@@ -50,8 +50,10 @@ async def _admin_token_or_superuser(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid admin token",
         )
-    # Fall back to superuser JWT
-    return await superuser_auth_dependency(request)
+    # Fall back to superuser JWT — call with the Authorization header string,
+    # not the Request object (the dependency expects authorization: str)
+    authorization = request.headers.get("Authorization")
+    return superuser_auth_dependency(authorization=authorization)
 
 
 def create_service_registration_router(
