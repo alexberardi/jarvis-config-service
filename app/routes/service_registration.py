@@ -149,12 +149,8 @@ def create_service_registration_router(
             # Write .env file if base_path (or JARVIS_ROOT) available and we have an app_key
             effective_base_path = body.base_path or settings.JARVIS_ROOT
             if effective_base_path and result.app_key:
-                # Derive config-service URL so each service gets JARVIS_CONFIG_URL
-                port = settings.PORT
-                config_url = f"http://localhost:{port}"
                 result.env_written = _write_env_file(
                     effective_base_path, item.name, result.app_key, result,
-                    config_url=config_url,
                 )
 
             results.append(result)
