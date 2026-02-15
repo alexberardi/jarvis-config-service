@@ -33,6 +33,10 @@ class Settings:
     # targeting "localhost" are rewritten to reach the host machine.
     DOCKER_HOST_GATEWAY: str = os.getenv("DOCKER_HOST_GATEWAY", "")
 
+    # In-container path to the jarvis root (volume-mounted from host).
+    # Used as default base_path for writing .env files during service registration.
+    JARVIS_ROOT: str = os.getenv("JARVIS_ROOT", "")
+
 
 @lru_cache
 def get_settings() -> Settings:

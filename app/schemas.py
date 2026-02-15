@@ -92,6 +92,7 @@ class KnownServiceEntry(BaseModel):
 
 class ServiceRegistryResponse(BaseModel):
     services: list[KnownServiceEntry]
+    jarvis_root: str | None = None  # In-container path to jarvis root (if mounted)
 
 
 class ServiceRegisterItem(BaseModel):

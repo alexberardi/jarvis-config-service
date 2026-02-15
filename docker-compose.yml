@@ -6,6 +6,8 @@ services:
     env_file: .env
     extra_hosts:
       - "${DOCKER_HOST_ALIAS:-host.docker.internal}:host-gateway"
+    volumes:
+      - "${JARVIS_HOST_ROOT:-.}:/jarvis"
     restart: unless-stopped
 
   postgres:

@@ -111,7 +111,10 @@ def create_service_registration_router(
                 )
             )
 
-        return ServiceRegistryResponse(services=entries)
+        return ServiceRegistryResponse(
+            services=entries,
+            jarvis_root=settings.JARVIS_ROOT or None,
+        )
 
     @router.post("/register", response_model=ServiceRegisterResponse)
     async def register_services(
@@ -143,13 +146,14 @@ def create_service_registration_router(
                 item, db, settings, known_map, existing_auth_ids,
             )
 
-            # Write .env file if base_path provided and we have an app_key
-            if body.base_path and result.app_key:
+            # Write .env file if base_path (or JARVIS_ROOT) available and we have an app_key
+            effective_base_path = body.base_path or settings.JARVIS_ROOT
+            if effective_base_path and result.app_key:
                 # Derive config-service URL so each service gets JARVIS_CONFIG_URL
                 port = settings.PORT
                 config_url = f"http://localhost:{port}"
                 result.env_written = _write_env_file(
-                    body.base_path, item.name, result.app_key, result,
+                    effective_base_path, item.name, result.app_key, result,
                     config_url=config_url,
                 )
 
