@@ -5,7 +5,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from jarvis_settings_client import create_settings_router, create_superuser_auth
 
-from app.auth import require_admin
 from app.config import get_settings
 from app.database import engine, Base
 from app.routes import services_router
@@ -45,10 +44,10 @@ app.add_middleware(
 # Service registry routes
 app.include_router(services_router)
 
-# Config service's own settings routes (admin auth)
+# Config service's own settings routes (superuser JWT auth)
 _settings_router = create_settings_router(
     service=get_settings_service(),
-    auth_dependency=require_admin,
+    auth_dependency=superuser_auth,
 )
 app.include_router(_settings_router, prefix="/settings", tags=["settings"])
 
