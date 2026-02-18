@@ -14,6 +14,26 @@ class TestHealthEndpoint:
         assert response.status_code == 200
         assert response.json() == {"status": "ok"}
 
+    def test_health_is_unauthenticated(self, client):
+        """Health endpoint should not require authentication."""
+        response = client.get("/health")
+        assert response.status_code == 200
+
+
+class TestInfoEndpoint:
+    """Tests for /info endpoint."""
+
+    def test_info_returns_service_identity(self, client):
+        """Info endpoint should return the service name for network discovery."""
+        response = client.get("/info")
+        assert response.status_code == 200
+        assert response.json() == {"service": "jarvis-config-service"}
+
+    def test_info_is_unauthenticated(self, client):
+        """Info endpoint should not require authentication."""
+        response = client.get("/info")
+        assert response.status_code == 200
+
 
 class TestListServices:
     """Tests for GET /services endpoint."""

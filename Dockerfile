@@ -15,7 +15,7 @@ COPY alembic/ alembic/
 COPY alembic.ini .
 
 # Default port (can be overridden via JARVIS_CONFIG_PORT env var)
-ENV JARVIS_CONFIG_PORT=8013
+ENV JARVIS_CONFIG_PORT=7700
 
 # Run using the app's main which reads port from env
 CMD ["python", "-m", "app.main"]

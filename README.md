@@ -6,8 +6,8 @@ Central service registry for the Jarvis ecosystem. Provides a single source of t
 
 Instead of every service having:
 ```bash
-JARVIS_AUTH_URL=http://localhost:8007
-JARVIS_LOGS_URL=http://localhost:8006
+JARVIS_AUTH_URL=http://localhost:7701
+JARVIS_LOGS_URL=http://localhost:7702
 JARVIS_LLM_PROXY_URL=http://localhost:8003
 # ... repeated across 12 services
 ```
@@ -91,7 +91,7 @@ CREATE TABLE services (
 
 ### List all services
 ```bash
-curl http://localhost:8013/services
+curl http://localhost:7700/services
 ```
 
 Response:
@@ -101,8 +101,8 @@ Response:
     {
       "name": "auth",
       "host": "pi-docker.local",
-      "port": 8007,
-      "url": "http://pi-docker.local:8007",
+      "port": 7701,
+      "url": "http://pi-docker.local:7701",
       "health_path": "/health"
     },
     {
@@ -118,7 +118,7 @@ Response:
 
 ### Get a specific service
 ```bash
-curl http://localhost:8013/services/llm_proxy
+curl http://localhost:7700/services/llm_proxy
 ```
 
 Response:
@@ -134,7 +134,7 @@ Response:
 
 ### Register a new service (admin)
 ```bash
-curl -X POST http://localhost:8013/services \
+curl -X POST http://localhost:7700/services \
   -H "Content-Type: application/json" \
   -H "X-Admin-Token: $JARVIS_CONFIG_ADMIN_TOKEN" \
   -d '{
@@ -148,7 +148,7 @@ curl -X POST http://localhost:8013/services \
 
 ### Update a service (admin)
 ```bash
-curl -X PUT http://localhost:8013/services/llm_proxy \
+curl -X PUT http://localhost:7700/services/llm_proxy \
   -H "Content-Type: application/json" \
   -H "X-Admin-Token: $JARVIS_CONFIG_ADMIN_TOKEN" \
   -d '{
@@ -158,7 +158,7 @@ curl -X PUT http://localhost:8013/services/llm_proxy \
 
 ### Check health of all services
 ```bash
-curl http://localhost:8013/services/health
+curl http://localhost:7700/services/health
 ```
 
 Response:
@@ -199,7 +199,7 @@ import httpx
 from functools import lru_cache
 from typing import Optional
 
-CONFIG_URL = os.getenv("JARVIS_CONFIG_URL", "http://localhost:8013")
+CONFIG_URL = os.getenv("JARVIS_CONFIG_URL", "http://localhost:7700")
 
 _service_cache: dict = {}
 
@@ -292,7 +292,7 @@ def sync_services_to_db(db_session):
 |----------|----------|---------|-------------|
 | `DATABASE_URL` | Yes | - | Postgres connection string |
 | `JARVIS_CONFIG_ADMIN_TOKEN` | Yes | - | Admin token for write operations |
-| `PORT` | No | `8013` | Port to run on |
+| `PORT` | No | `7700` | Port to run on |
 
 ---
 
@@ -302,7 +302,7 @@ def sync_services_to_db(db_session):
 
 ```bash
 docker build -t jarvis-config-service .
-docker run -p 8013:8013 \
+docker run -p 7700:7700 \
   -e DATABASE_URL=postgresql://user:pass@host:5432/jarvis_config \
   -e JARVIS_CONFIG_ADMIN_TOKEN=your-secret-token \
   jarvis-config-service
@@ -315,7 +315,7 @@ services:
   jarvis-config:
     build: .
     ports:
-      - "8013:8013"
+      - "7700:7700"
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/jarvis_config
       - JARVIS_CONFIG_ADMIN_TOKEN=${JARVIS_CONFIG_ADMIN_TOKEN}
@@ -341,14 +341,14 @@ volumes:
 After deploying, register your services:
 
 ```bash
-export CONFIG_URL=http://localhost:8013
+export CONFIG_URL=http://localhost:7700
 export TOKEN=your-admin-token
 
 # Auth service
 curl -X POST $CONFIG_URL/services \
   -H "Content-Type: application/json" \
   -H "X-Admin-Token: $TOKEN" \
-  -d '{"name": "auth", "host": "pi-docker.local", "port": 8007}'
+  -d '{"name": "auth", "host": "pi-docker.local", "port": 7701}'
 
 # LLM Proxy
 curl -X POST $CONFIG_URL/services \
@@ -374,7 +374,7 @@ curl -X POST $CONFIG_URL/services \
 │    GPU SERVER       │    │     MAC MINI        │    │   DOCKER HOST       │
 │                     │    │   (macOS-specific)  │    │                     │
 ├─────────────────────┤    ├─────────────────────┤    ├─────────────────────┤
-│ • llm_proxy         │    │ • whisper           │    │ • config (8013) ◄───┼── Source of truth
+│ • llm_proxy         │    │ • whisper           │    │ • config (7700) ◄───┼── Source of truth
 │ • tts               │    │ • ocr               │    │ • auth              │
 │                     │    │                     │    │ • command_center    │
 │                     │    │                     │    │ • logs              │
@@ -383,7 +383,7 @@ curl -X POST $CONFIG_URL/services \
 └─────────────────────┘    └─────────────────────┘    └─────────────────────┘
          │                          │                          │
          └──────────────────────────┴──────────────────────────┘
-                    All services: JARVIS_CONFIG_URL=http://<config-host>:8013
+                    All services: JARVIS_CONFIG_URL=http://<config-host>:7700
 ```
 
 ---

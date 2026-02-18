@@ -27,6 +27,7 @@ engine = create_engine(
     poolclass=StaticPool,
 )
 
+
 # Enable foreign keys for SQLite
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
@@ -75,8 +76,14 @@ def client(db_session):
 
 @pytest.fixture
 def admin_headers():
-    """Headers for admin-authenticated requests."""
+    """Headers for CRUD admin-authenticated requests (X-Admin-Token)."""
     return {"X-Admin-Token": "test-admin-token"}
+
+
+@pytest.fixture
+def registration_headers():
+    """Headers for registration routes (X-Jarvis-Admin-Token)."""
+    return {"X-Jarvis-Admin-Token": "test-auth-admin-token"}
 
 
 @pytest.fixture
@@ -126,3 +133,5 @@ def sample_service(db_session) -> Service:
     db_session.commit()
     db_session.refresh(service)
     return service
+
+

@@ -2,7 +2,7 @@ services:
   jarvis-config:
     build: .
     ports:
-      - "${JARVIS_CONFIG_PORT:-8013}:${JARVIS_CONFIG_PORT:-8013}"
+      - "${JARVIS_CONFIG_PORT:-7700}:${JARVIS_CONFIG_PORT:-7700}"
     env_file: .env
     extra_hosts:
       - "${DOCKER_HOST_ALIAS:-host.docker.internal}:host-gateway"
