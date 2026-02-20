@@ -37,7 +37,7 @@ def create_settings_gateway_router(
         app_id: str,
         app_key: str,
         auth_header: str | None = None,
-    ) -> ServiceSettingsResult:
+    ) -> ServiceSettingsResult | None:
         """Fetch settings from a single service using JWT and/or app-to-app auth."""
         dockerized = bool(get_settings().DOCKER_HOST_GATEWAY)
         url = f"{service.get_url(dockerized=dockerized)}/settings/"
@@ -61,6 +61,9 @@ def create_settings_gateway_router(
                     settings=data.get("settings", []),
                     latency_ms=latency_ms,
                 )
+            elif resp.status_code == 404:
+                # Service has no settings endpoint — exclude from results
+                return None
             else:
                 return ServiceSettingsResult(
                     service_name=service.name,
@@ -130,7 +133,9 @@ def create_settings_gateway_router(
                     client, svc, cfg.JARVIS_APP_ID, cfg.JARVIS_APP_KEY,
                     auth_header=auth_header,
                 )
-                results.append(result)
+                # None means service has no settings endpoint (404) — skip it
+                if result is not None:
+                    results.append(result)
 
         successful = sum(1 for r in results if r.success)
         return AggregatedSettingsResponse(
