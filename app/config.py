@@ -33,6 +33,9 @@ class Settings:
     # targeting "localhost" are rewritten to reach the host machine.
     DOCKER_HOST_GATEWAY: str = os.getenv("DOCKER_HOST_GATEWAY", "")
 
+    # When using style=remote, fall back to this host if no remote_host query param
+    JARVIS_REMOTE_HOST: str = os.getenv("JARVIS_REMOTE_HOST", "")
+
     # In-container path to the jarvis root (volume-mounted from host).
     # Used as default base_path for writing .env files during service registration.
     JARVIS_ROOT: str = os.getenv("JARVIS_ROOT", "")

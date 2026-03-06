@@ -60,6 +60,21 @@ class TestListServices:
         data = response.json()
         assert "host.docker.internal" in data["services"][0]["url"]
 
+    def test_list_services_remote_style(self, client, sample_service):
+        """Test listing services with remote URL style rewrites localhost."""
+        response = client.get("/services?style=remote&remote_host=10.0.0.5")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["services"][0]["url"] == "http://10.0.0.5:8006"
+
+    def test_list_services_remote_style_no_host_no_env(self, client, sample_service):
+        """Test remote style without remote_host or env var keeps localhost."""
+        response = client.get("/services?style=remote")
+        assert response.status_code == 200
+        data = response.json()
+        # No remote_host and no JARVIS_REMOTE_HOST → localhost unchanged
+        assert data["services"][0]["url"] == "http://localhost:8006"
+
 
 class TestGetService:
     """Tests for GET /services/{name} endpoint."""
@@ -85,6 +100,23 @@ class TestGetService:
         assert response.status_code == 200
         data = response.json()
         assert "host.docker.internal" in data["url"]
+
+    def test_get_service_remote_style(self, client, sample_service):
+        """Test getting service with remote URL style."""
+        response = client.get("/services/logs?style=remote&remote_host=10.0.0.5")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["url"] == "http://10.0.0.5:8006"
+
+    def test_get_service_remote_skips_non_localhost(self, client, db_session):
+        """Test remote style does not rewrite non-localhost hosts."""
+        from app.models import Service
+        svc = Service(name="remote-svc", host="192.168.1.50", port=9000, scheme="http", health_path="/health")
+        db_session.add(svc)
+        db_session.commit()
+        response = client.get("/services/remote-svc?style=remote&remote_host=10.0.0.5")
+        assert response.status_code == 200
+        assert response.json()["url"] == "http://192.168.1.50:9000"
 
 
 class TestCreateService:

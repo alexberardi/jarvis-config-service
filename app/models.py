@@ -45,16 +45,20 @@ class Service(Base):
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
 
-    def get_url(self, dockerized: bool = False) -> str:
+    def get_url(self, dockerized: bool = False, remote_host: str | None = None) -> str:
         """
         Get the service URL.
 
         Args:
             dockerized: If True and host is localhost/127.0.0.1,
                        replace with host.docker.internal
+            remote_host: If set and host is localhost/127.0.0.1,
+                        replace with this remote IP/hostname
         """
         host = self.host
-        if dockerized and host in ("localhost", "127.0.0.1"):
+        if remote_host and host in ("localhost", "127.0.0.1"):
+            host = remote_host
+        elif dockerized and host in ("localhost", "127.0.0.1"):
             host = "host.docker.internal"
         return f"{self.scheme}://{host}:{self.port}"
 
@@ -63,9 +67,9 @@ class Service(Base):
         """Default URL (non-dockerized)."""
         return self.get_url(dockerized=False)
 
-    def get_health_url(self, dockerized: bool = False) -> str:
+    def get_health_url(self, dockerized: bool = False, remote_host: str | None = None) -> str:
         """Get the health check URL."""
-        return f"{self.get_url(dockerized)}{self.health_path}"
+        return f"{self.get_url(dockerized, remote_host)}{self.health_path}"
 
     @property
     def health_url(self) -> str:

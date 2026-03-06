@@ -1,3 +1,4 @@
+import os
 import time
 from enum import Enum
 from typing import Optional
@@ -26,21 +27,40 @@ class UrlStyle(str, Enum):
     """URL style for service responses."""
     default = "default"
     dockerized = "dockerized"
+    remote = "remote"
+
+
+def _resolve_url_params(
+    style: Optional[UrlStyle],
+    remote_host: Optional[str],
+) -> tuple[bool, str | None]:
+    """Resolve style + remote_host into (dockerized, effective_remote_host)."""
+    if style == UrlStyle.remote:
+        effective_host = remote_host or os.getenv("JARVIS_REMOTE_HOST")
+        return False, effective_host
+    return style == UrlStyle.dockerized, None
+
+
+def _service_url(s: Service, dockerized: bool, remote_host: str | None) -> str:
+    """Get the URL for a service given resolved style params."""
+    return s.get_url(dockerized=dockerized, remote_host=remote_host)
 
 
 @router.get("", response_model=ServiceListResponse)
 def list_services(
-    style: Optional[UrlStyle] = Query(default=None, description="URL style: 'dockerized' replaces localhost with host.docker.internal"),
+    style: Optional[UrlStyle] = Query(default=None, description="URL style: 'dockerized' or 'remote'"),
+    remote_host: Optional[str] = Query(default=None, description="Remote host IP (used with style=remote)"),
     db: Session = Depends(get_db),
 ):
     """
     List all registered services.
 
     Query Parameters:
-        style: URL style. Use 'dockerized' for Docker containers to get
-               host.docker.internal instead of localhost/127.0.0.1.
+        style: URL style. 'dockerized' replaces localhost with host.docker.internal.
+               'remote' replaces localhost with remote_host IP.
+        remote_host: IP/hostname for remote style (falls back to JARVIS_REMOTE_HOST env).
     """
-    dockerized = style == UrlStyle.dockerized
+    dockerized, effective_remote_host = _resolve_url_params(style, remote_host)
     services = db.query(Service).order_by(Service.name).all()
     return ServiceListResponse(
         services=[
@@ -52,7 +72,7 @@ def list_services(
                 scheme=s.scheme,
                 health_path=s.health_path,
                 description=s.description,
-                url=s.get_url(dockerized=dockerized),
+                url=_service_url(s, dockerized, effective_remote_host),
                 created_at=s.created_at,
                 updated_at=s.updated_at,
             )
@@ -115,11 +135,12 @@ async def check_all_services_health(db: Session = Depends(get_db)):
 @router.get("/{name}", response_model=ServiceResponse)
 def get_service(
     name: str,
-    style: Optional[UrlStyle] = Query(default=None, description="URL style: 'dockerized' replaces localhost with host.docker.internal"),
+    style: Optional[UrlStyle] = Query(default=None, description="URL style: 'dockerized' or 'remote'"),
+    remote_host: Optional[str] = Query(default=None, description="Remote host IP (used with style=remote)"),
     db: Session = Depends(get_db),
 ):
     """Get a specific service by name."""
-    dockerized = style == UrlStyle.dockerized
+    dockerized, effective_remote_host = _resolve_url_params(style, remote_host)
     service = db.query(Service).filter(Service.name == name).first()
     if not service:
         raise HTTPException(
@@ -134,7 +155,7 @@ def get_service(
         scheme=service.scheme,
         health_path=service.health_path,
         description=service.description,
-        url=service.get_url(dockerized=dockerized),
+        url=_service_url(service, dockerized, effective_remote_host),
         created_at=service.created_at,
         updated_at=service.updated_at,
     )
