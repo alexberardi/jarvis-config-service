@@ -108,6 +108,7 @@ def create_service_registration_router(
                     auth_registered=name in auth_app_ids,
                     current_host=db_svc.host if db_svc else None,
                     current_port=db_svc.port if db_svc else None,
+                    current_scheme=db_svc.scheme if db_svc else None,
                 )
             )
 
@@ -278,13 +279,14 @@ async def _register_one(
         if existing:
             existing.host = item.host
             existing.port = item.port
+            existing.scheme = item.scheme
         else:
             db.add(
                 Service(
                     name=item.name,
                     host=item.host,
                     port=item.port,
-                    scheme="http",
+                    scheme=item.scheme,
                     health_path=str(known.get("health_path", "/health")),
                     description=str(known.get("description", "")),
                 )

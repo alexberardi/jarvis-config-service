@@ -88,6 +88,7 @@ class KnownServiceEntry(BaseModel):
     auth_registered: bool
     current_host: Optional[str] = None
     current_port: Optional[int] = None
+    current_scheme: Optional[str] = None
 
 
 class ServiceRegistryResponse(BaseModel):
@@ -99,6 +100,7 @@ class ServiceRegisterItem(BaseModel):
     name: str = Field(..., min_length=1, max_length=64)
     host: str = Field(default="localhost", min_length=1, max_length=255)
     port: int = Field(..., ge=1, le=65535)
+    scheme: str = Field(default="http", pattern="^(https?|mqtts?)$", max_length=10)
 
 
 class ServiceRegisterRequest(BaseModel):
