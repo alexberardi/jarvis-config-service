@@ -71,4 +71,17 @@ KNOWN_SERVICES: list[dict[str, str | int]] = [
         "description": "MCP server",
         "health_path": "/health",
     },
+    {
+        "name": "jarvis-notifications",
+        "port": 7712,
+        "description": "Push notifications",
+        "health_path": "/health",
+    },
+    {
+        "name": "jarvis-mqtt-broker",
+        "port": 1884,
+        "scheme": "mqtt",
+        "description": "MQTT message broker (Mosquitto)",
+        "health_path": "",
+    },
 ]
