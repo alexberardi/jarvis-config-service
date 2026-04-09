@@ -54,7 +54,11 @@ def create_settings_gateway_router(
             latency_ms = round((time.time() - start) * 1000, 2)
 
             if resp.status_code == 200:
-                data = resp.json()
+                try:
+                    data = resp.json()
+                except Exception:
+                    # Empty or non-JSON 200 response — treat as no settings
+                    return None
                 return ServiceSettingsResult(
                     service_name=service.name,
                     success=True,
