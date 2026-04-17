@@ -89,6 +89,7 @@ class KnownServiceEntry(BaseModel):
     current_host: Optional[str] = None
     current_port: Optional[int] = None
     current_scheme: Optional[str] = None
+    custom: bool = False
 
 
 class ServiceRegistryResponse(BaseModel):
@@ -101,6 +102,8 @@ class ServiceRegisterItem(BaseModel):
     host: str = Field(default="localhost", min_length=1, max_length=255)
     port: int = Field(..., ge=1, le=65535)
     scheme: str = Field(default="http", pattern="^(https?|mqtts?)$", max_length=10)
+    health_path: str = Field(default="/health", max_length=255)
+    description: Optional[str] = Field(default=None, max_length=500)
 
 
 class ServiceRegisterRequest(BaseModel):

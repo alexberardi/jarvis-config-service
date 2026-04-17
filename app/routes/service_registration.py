@@ -94,9 +94,11 @@ def create_service_registration_router(
             except httpx.RequestError:
                 pass  # auth service unreachable; auth_registered will be False
 
+        known_names: set[str] = set()
         entries: list[KnownServiceEntry] = []
         for ks in KNOWN_SERVICES:
             name = str(ks["name"])
+            known_names.add(name)
             db_svc = db_services.get(name)
             entries.append(
                 KnownServiceEntry(
@@ -109,6 +111,25 @@ def create_service_registration_router(
                     current_host=db_svc.host if db_svc else None,
                     current_port=db_svc.port if db_svc else None,
                     current_scheme=db_svc.scheme if db_svc else None,
+                )
+            )
+
+        # Include services registered in the DB but not in KNOWN_SERVICES
+        for name, db_svc in db_services.items():
+            if name in known_names:
+                continue
+            entries.append(
+                KnownServiceEntry(
+                    name=name,
+                    default_port=db_svc.port,
+                    description=db_svc.description or "",
+                    health_path=db_svc.health_path or "/health",
+                    config_registered=True,
+                    auth_registered=name in auth_app_ids,
+                    current_host=db_svc.host,
+                    current_port=db_svc.port,
+                    current_scheme=db_svc.scheme,
+                    custom=True,
                 )
             )
 
@@ -240,6 +261,28 @@ def create_service_registration_router(
         except httpx.RequestError as exc:
             return HealthProbeResponse(healthy=False, error=str(exc))
 
+    @router.delete("/{name}", status_code=status.HTTP_204_NO_CONTENT)
+    async def delete_custom_service(
+        name: str,
+        db: Session = Depends(get_db),
+        _user: dict = Depends(either_auth),
+    ) -> None:
+        """Delete a custom service (not in KNOWN_SERVICES) from the config DB."""
+        known_names = {str(ks["name"]) for ks in KNOWN_SERVICES}
+        if name in known_names:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot delete built-in service '{name}'",
+            )
+        service = db.query(Service).filter(Service.name == name).first()
+        if not service:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Service '{name}' not found",
+            )
+        db.delete(service)
+        db.commit()
+
     return router
 
 
@@ -280,6 +323,11 @@ async def _register_one(
             existing.host = item.host
             existing.port = item.port
             existing.scheme = item.scheme
+            # Update metadata if provided (for custom services)
+            if item.description is not None:
+                existing.description = item.description
+            if item.health_path != "/health" or not existing.health_path:
+                existing.health_path = item.health_path
         else:
             db.add(
                 Service(
@@ -287,8 +335,8 @@ async def _register_one(
                     host=item.host,
                     port=item.port,
                     scheme=item.scheme,
-                    health_path=str(known.get("health_path", "/health")),
-                    description=str(known.get("description", "")),
+                    health_path=item.health_path or str(known.get("health_path", "/health")),
+                    description=item.description or str(known.get("description", "")),
                 )
             )
         db.commit()

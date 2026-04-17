@@ -98,6 +98,49 @@ class TestGetServiceRegistry:
 
         assert resp.status_code == 401
 
+    def test_includes_custom_services_from_db(self, client, db_session, registration_headers):
+        """Services in the DB but not in KNOWN_SERVICES appear with custom=True."""
+        svc = Service(
+            name="go2rtc", host="localhost", port=1984,
+            scheme="http", health_path="/api", description="Camera streaming",
+        )
+        db_session.add(svc)
+        db_session.commit()
+
+        patcher, _ = mock_async_client(
+            get_response=httpx.Response(200, json=[]),
+        )
+        with patcher:
+            resp = client.get("/v1/services/registry", headers=registration_headers)
+
+        data = resp.json()
+        custom_entry = next(
+            (s for s in data["services"] if s["name"] == "go2rtc"), None,
+        )
+        assert custom_entry is not None
+        assert custom_entry["custom"] is True
+        assert custom_entry["config_registered"] is True
+        assert custom_entry["default_port"] == 1984
+        assert custom_entry["description"] == "Camera streaming"
+        assert custom_entry["health_path"] == "/api"
+        assert custom_entry["current_host"] == "localhost"
+
+        # Known services should have custom=False
+        auth_entry = next(s for s in data["services"] if s["name"] == "jarvis-auth")
+        assert auth_entry["custom"] is False
+
+    def test_known_services_have_custom_false(self, client, registration_headers):
+        """Built-in known services always have custom=False."""
+        patcher, _ = mock_async_client(
+            get_response=httpx.Response(200, json=[]),
+        )
+        with patcher:
+            resp = client.get("/v1/services/registry", headers=registration_headers)
+
+        data = resp.json()
+        for svc in data["services"]:
+            assert svc["custom"] is False
+
 
 # ── POST /v1/services/register ──
 
@@ -647,3 +690,88 @@ class TestProbeHealth:
 
         assert resp.status_code == 200
         mock_inst.get.assert_called_once_with("http://localhost:7702/health")
+
+
+# ── DELETE /v1/services/{name} ──
+
+
+class TestDeleteCustomService:
+    """Tests for DELETE /v1/services/{name}."""
+
+    def test_delete_custom_service(self, client, db_session, registration_headers):
+        """Can delete a custom (non-known) service."""
+        svc = Service(
+            name="go2rtc", host="localhost", port=1984,
+            scheme="http", health_path="/api", description="Camera streaming",
+        )
+        db_session.add(svc)
+        db_session.commit()
+
+        resp = client.delete("/v1/services/go2rtc", headers=registration_headers)
+
+        assert resp.status_code == 204
+        assert db_session.query(Service).filter(Service.name == "go2rtc").first() is None
+
+    def test_cannot_delete_known_service(self, client, db_session, registration_headers):
+        """Cannot delete a built-in known service."""
+        svc = Service(
+            name="jarvis-auth", host="localhost", port=7701,
+            scheme="http", health_path="/health",
+        )
+        db_session.add(svc)
+        db_session.commit()
+
+        resp = client.delete("/v1/services/jarvis-auth", headers=registration_headers)
+
+        assert resp.status_code == 400
+        assert "built-in" in resp.json()["detail"]
+        # Service still in DB
+        assert db_session.query(Service).filter(Service.name == "jarvis-auth").first() is not None
+
+    def test_delete_nonexistent_service(self, client, registration_headers):
+        """Returns 404 for a service not in the DB."""
+        resp = client.delete("/v1/services/nonexistent", headers=registration_headers)
+
+        assert resp.status_code == 404
+
+    def test_delete_requires_auth(self, client):
+        """Delete endpoint should reject unauthenticated requests."""
+        resp = client.delete("/v1/services/go2rtc")
+
+        assert resp.status_code == 401
+
+
+# ── Register with description/health_path ──
+
+
+class TestRegisterWithMetadata:
+    """Tests for description and health_path in registration."""
+
+    def test_register_custom_service_with_metadata(self, client, db_session, registration_headers):
+        """Custom services can be registered with description and health_path."""
+        patcher, _ = mock_async_client(
+            get_response=httpx.Response(200, json=[]),
+            post_response=httpx.Response(
+                201, json={"app_id": "go2rtc", "key": "key-123"},
+            ),
+        )
+        with patcher:
+            resp = client.post(
+                "/v1/services/register",
+                json={
+                    "services": [{
+                        "name": "go2rtc",
+                        "host": "localhost",
+                        "port": 1984,
+                        "health_path": "/api",
+                        "description": "Camera streaming",
+                    }],
+                },
+                headers=registration_headers,
+            )
+
+        assert resp.status_code == 200
+        svc = db_session.query(Service).filter(Service.name == "go2rtc").first()
+        assert svc is not None
+        assert svc.description == "Camera streaming"
+        assert svc.health_path == "/api"
