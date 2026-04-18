@@ -101,7 +101,7 @@ class TestGetServiceRegistry:
     def test_includes_custom_services_from_db(self, client, db_session, registration_headers):
         """Services in the DB but not in KNOWN_SERVICES appear with custom=True."""
         svc = Service(
-            name="go2rtc", host="localhost", port=1984,
+            name="my-custom-svc", host="localhost", port=1984,
             scheme="http", health_path="/api", description="Camera streaming",
         )
         db_session.add(svc)
@@ -115,7 +115,7 @@ class TestGetServiceRegistry:
 
         data = resp.json()
         custom_entry = next(
-            (s for s in data["services"] if s["name"] == "go2rtc"), None,
+            (s for s in data["services"] if s["name"] == "my-custom-svc"), None,
         )
         assert custom_entry is not None
         assert custom_entry["custom"] is True
@@ -701,16 +701,16 @@ class TestDeleteCustomService:
     def test_delete_custom_service(self, client, db_session, registration_headers):
         """Can delete a custom (non-known) service."""
         svc = Service(
-            name="go2rtc", host="localhost", port=1984,
+            name="my-custom-svc", host="localhost", port=1984,
             scheme="http", health_path="/api", description="Camera streaming",
         )
         db_session.add(svc)
         db_session.commit()
 
-        resp = client.delete("/v1/services/go2rtc", headers=registration_headers)
+        resp = client.delete("/v1/services/my-custom-svc", headers=registration_headers)
 
         assert resp.status_code == 204
-        assert db_session.query(Service).filter(Service.name == "go2rtc").first() is None
+        assert db_session.query(Service).filter(Service.name == "my-custom-svc").first() is None
 
     def test_cannot_delete_known_service(self, client, db_session, registration_headers):
         """Cannot delete a built-in known service."""
@@ -736,7 +736,7 @@ class TestDeleteCustomService:
 
     def test_delete_requires_auth(self, client):
         """Delete endpoint should reject unauthenticated requests."""
-        resp = client.delete("/v1/services/go2rtc")
+        resp = client.delete("/v1/services/my-custom-svc")
 
         assert resp.status_code == 401
 
@@ -752,7 +752,7 @@ class TestRegisterWithMetadata:
         patcher, _ = mock_async_client(
             get_response=httpx.Response(200, json=[]),
             post_response=httpx.Response(
-                201, json={"app_id": "go2rtc", "key": "key-123"},
+                201, json={"app_id": "my-custom-svc", "key": "key-123"},
             ),
         )
         with patcher:
@@ -760,7 +760,7 @@ class TestRegisterWithMetadata:
                 "/v1/services/register",
                 json={
                     "services": [{
-                        "name": "go2rtc",
+                        "name": "my-custom-svc",
                         "host": "localhost",
                         "port": 1984,
                         "health_path": "/api",
@@ -771,7 +771,7 @@ class TestRegisterWithMetadata:
             )
 
         assert resp.status_code == 200
-        svc = db_session.query(Service).filter(Service.name == "go2rtc").first()
+        svc = db_session.query(Service).filter(Service.name == "my-custom-svc").first()
         assert svc is not None
         assert svc.description == "Camera streaming"
         assert svc.health_path == "/api"

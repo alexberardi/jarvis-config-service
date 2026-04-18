@@ -84,4 +84,10 @@ KNOWN_SERVICES: list[dict[str, str | int]] = [
         "description": "MQTT message broker (Mosquitto)",
         "health_path": "",
     },
+    {
+        "name": "go2rtc",
+        "port": 1984,
+        "description": "Camera streaming (go2rtc)",
+        "health_path": "/api",
+    },
 ]
