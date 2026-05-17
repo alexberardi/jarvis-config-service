@@ -148,7 +148,7 @@ Used by: dockerized services on macOS (where GPU services run on the host), `jar
 5. **`JARVIS_CONFIG_URL_STYLE` is a request-time concern, not a runtime config.** Callers pass `?style=dockerized` per request. There's no global server-side switch. (The env var `DOCKER_HOST_GATEWAY` only affects *outbound* probes / settings fan-outs originating from config-service itself.)
 6. **`/info` is intentionally unauthenticated** — used for network discovery (e.g. `jarvis-admin` scanning the LAN to find the config service). Don't add auth to it.
 7. **`jarvis_settings_client.create_superuser_auth` is created at module import time** in `main.py`, then passed into router factories. Tests override it via FastAPI's dependency_overrides. Don't try to construct routers without the factory.
-8. **Settings gateway vs jarvis-settings-server (port 7708): currently ambiguous.** The settings gateway in this service aggregates settings from all services for admin UX. `jarvis-settings-server` exists in the registry but its role overlaps. **Treat the settings gateway as the canonical aggregator** until proven otherwise; `jarvis-settings-server` is a deprecation candidate. Confirm before adding new functionality to either.
+8. **The settings gateway here is the canonical settings aggregator.** `jarvis-settings-server` (port 7708) exposes the same surface but **nothing routes to it** — admin calls this gateway at `${configUrl}/v1/settings/*` directly (see `jarvis-admin/server/src/routes/settings.ts`, `quick-sets.ts`, `llm-setup.ts`). Treat `jarvis-settings-server` as the deprecation candidate. If you need to extend settings aggregation, do it here.
 
 ---
 
