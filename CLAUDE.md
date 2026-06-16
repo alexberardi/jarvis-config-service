@@ -112,7 +112,7 @@ A service is excluded from the aggregated response if it returns 404 on `/settin
 
 ### 4. URL style negotiation (Docker / remote callers)
 
-`GET /services?style=dockerized` returns URLs with `localhost`→`host.docker.internal`. `style=remote&remote_host=10.0.0.122` rewrites to a specific IP. This is **per-request**, not a service-wide setting — the *caller* decides what style it needs.
+`GET /services?style=dockerized` returns URLs with `localhost`→`host.docker.internal`. `style=remote&remote_host=<gpu-host>` rewrites to a specific IP. This is **per-request**, not a service-wide setting — the *caller* decides what style it needs.
 
 Used by: dockerized services on macOS (where GPU services run on the host), `jarvis-node-mobile` connecting from a different host.
 
