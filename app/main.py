@@ -32,11 +32,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS - allow all origins for internal service communication
+# CORS: wildcard origin is acceptable here because every endpoint authenticates
+# via header (bearer JWT / admin token), not cookies. With no cookies in play,
+# credentials mode adds nothing but the "*"+credentials combo browsers reject — off.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
