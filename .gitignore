@@ -10,6 +10,12 @@ __pycache__/
 .vscode/
 *.swp
 
+# Coverage
+.coverage
+
+# Packaging
+*.egg-info/
+
 # Database
 *.db
 
