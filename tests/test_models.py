@@ -23,6 +23,25 @@ class TestServiceModel:
         """Test URL generation with defaults."""
         assert service.get_url() == "http://localhost:8000"
 
+    def test_get_url_external_uses_published_coords(self):
+        """external=True uses external_host/external_port (the published coords)
+        while the internal host/port stay the container coords."""
+        svc = Service(
+            id=2, name="jarvis-auth", host="jarvis-auth", port=8000, scheme="http",
+            external_host="localhost", external_port=7701,
+        )
+        # internal discovery is unchanged (container coords)
+        assert svc.get_url() == "http://jarvis-auth:8000"
+        # external client gets the published coords; localhost stays for the
+        # client/style to rewrite to a reachable host
+        assert svc.get_url(external=True) == "http://localhost:7701"
+        # external + remote_host swaps the localhost sentinel for the caller host
+        assert svc.get_url(external=True, remote_host="10.0.0.5") == "http://10.0.0.5:7701"
+
+    def test_get_url_external_falls_back_to_internal(self, service):
+        """external=True with no external coords falls back to host/port."""
+        assert service.get_url(external=True) == "http://localhost:8000"
+
     def test_get_url_dockerized_localhost(self, service):
         """Test URL generation with dockerized localhost."""
         assert service.get_url(dockerized=True) == "http://host.docker.internal:8000"

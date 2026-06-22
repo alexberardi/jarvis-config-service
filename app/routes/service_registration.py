@@ -323,6 +323,12 @@ async def _register_one(
             existing.host = item.host
             existing.port = item.port
             existing.scheme = item.scheme
+            # External coords are optional; only overwrite when provided so a
+            # plain re-register doesn't wipe previously-set published coords.
+            if item.external_host is not None:
+                existing.external_host = item.external_host
+            if item.external_port is not None:
+                existing.external_port = item.external_port
             # Update metadata if provided (for custom services)
             if item.description is not None:
                 existing.description = item.description
@@ -335,6 +341,8 @@ async def _register_one(
                     host=item.host,
                     port=item.port,
                     scheme=item.scheme,
+                    external_host=item.external_host,
+                    external_port=item.external_port,
                     health_path=item.health_path or str(known.get("health_path", "/health")),
                     description=item.description or str(known.get("description", "")),
                 )

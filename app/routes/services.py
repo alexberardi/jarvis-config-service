@@ -28,22 +28,30 @@ class UrlStyle(str, Enum):
     default = "default"
     dockerized = "dockerized"
     remote = "remote"
+    external = "external"
 
 
 def _resolve_url_params(
     style: Optional[UrlStyle],
     remote_host: Optional[str],
-) -> tuple[bool, str | None]:
-    """Resolve style + remote_host into (dockerized, effective_remote_host)."""
+) -> tuple[bool, str | None, bool]:
+    """Resolve style + remote_host into (dockerized, effective_remote_host, external)."""
+    if style == UrlStyle.external:
+        # External clients (mobile / off the docker network): use the published
+        # coords, and swap a localhost external_host for the caller's host if given.
+        effective_host = remote_host or os.getenv("JARVIS_REMOTE_HOST")
+        return False, effective_host, True
     if style == UrlStyle.remote:
         effective_host = remote_host or os.getenv("JARVIS_REMOTE_HOST")
-        return False, effective_host
-    return style == UrlStyle.dockerized, None
+        return False, effective_host, False
+    return style == UrlStyle.dockerized, None, False
 
 
-def _service_url(s: Service, dockerized: bool, remote_host: str | None) -> str:
+def _service_url(
+    s: Service, dockerized: bool, remote_host: str | None, external: bool = False
+) -> str:
     """Get the URL for a service given resolved style params."""
-    return s.get_url(dockerized=dockerized, remote_host=remote_host)
+    return s.get_url(dockerized=dockerized, remote_host=remote_host, external=external)
 
 
 @router.get("", response_model=ServiceListResponse)
@@ -60,7 +68,7 @@ def list_services(
                'remote' replaces localhost with remote_host IP.
         remote_host: IP/hostname for remote style (falls back to JARVIS_REMOTE_HOST env).
     """
-    dockerized, effective_remote_host = _resolve_url_params(style, remote_host)
+    dockerized, effective_remote_host, external = _resolve_url_params(style, remote_host)
     services = db.query(Service).order_by(Service.name).all()
     return ServiceListResponse(
         services=[
@@ -72,7 +80,9 @@ def list_services(
                 scheme=s.scheme,
                 health_path=s.health_path,
                 description=s.description,
-                url=_service_url(s, dockerized, effective_remote_host),
+                external_host=s.external_host,
+                external_port=s.external_port,
+                url=_service_url(s, dockerized, effective_remote_host, external),
                 created_at=s.created_at,
                 updated_at=s.updated_at,
             )
@@ -140,7 +150,7 @@ def get_service(
     db: Session = Depends(get_db),
 ):
     """Get a specific service by name."""
-    dockerized, effective_remote_host = _resolve_url_params(style, remote_host)
+    dockerized, effective_remote_host, external = _resolve_url_params(style, remote_host)
     service = db.query(Service).filter(Service.name == name).first()
     if not service:
         raise HTTPException(
@@ -155,7 +165,9 @@ def get_service(
         scheme=service.scheme,
         health_path=service.health_path,
         description=service.description,
-        url=_service_url(service, dockerized, effective_remote_host),
+        external_host=service.external_host,
+        external_port=service.external_port,
+        url=_service_url(service, dockerized, effective_remote_host, external),
         created_at=service.created_at,
         updated_at=service.updated_at,
     )

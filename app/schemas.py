@@ -27,6 +27,8 @@ class ServiceUpdate(BaseModel):
 class ServiceResponse(ServiceBase):
     id: int
     url: str
+    external_host: Optional[str] = None
+    external_port: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -104,6 +106,11 @@ class ServiceRegisterItem(BaseModel):
     scheme: str = Field(default="http", pattern="^(https?|mqtts?|wss?)$", max_length=10)
     health_path: str = Field(default="/health", max_length=255)
     description: Optional[str] = Field(default=None, max_length=500)
+    # Externally-reachable coords for off-docker clients (mobile). Optional;
+    # falls back to host/port. external_host is typically "localhost" (a
+    # sentinel the client/`?style=external` rewrites to the reachable host).
+    external_host: Optional[str] = Field(default=None, max_length=255)
+    external_port: Optional[int] = Field(default=None, ge=1, le=65535)
 
 
 class ServiceRegisterRequest(BaseModel):

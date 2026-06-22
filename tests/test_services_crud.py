@@ -62,6 +62,29 @@ class TestListServices:
         assert len(data["services"]) == 1
         assert data["services"][0]["url"] == "http://host.docker.internal:8080"
 
+    def test_list_services_external_style(self, client: TestClient, db_session):
+        """style=external returns the published coords (external_host/port) so an
+        off-docker client (mobile) gets a reachable URL, while the default style
+        still returns the internal container coords."""
+        from app.models import Service
+        db_session.add(Service(
+            name="jarvis-auth", host="jarvis-auth", port=8000, scheme="http",
+            external_host="localhost", external_port=7701,
+        ))
+        db_session.commit()
+
+        internal = client.get("/services").json()["services"][0]["url"]
+        assert internal == "http://jarvis-auth:8000"
+
+        external = client.get("/services?style=external").json()["services"][0]["url"]
+        assert external == "http://localhost:7701"
+
+        # external + remote_host swaps the localhost sentinel for the caller host
+        with_host = client.get(
+            "/services?style=external&remote_host=10.0.0.5"
+        ).json()["services"][0]["url"]
+        assert with_host == "http://10.0.0.5:7701"
+
     def test_list_services_dockerized_preserves_non_localhost(
         self, client: TestClient, admin_headers: dict
     ):
