@@ -1,4 +1,5 @@
 import os
+import sys
 from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config
@@ -7,6 +8,11 @@ from sqlalchemy import pool
 from alembic import context
 
 from app.models import Base
+
+# Alembic does not put the script_location (this `alembic/` dir) on sys.path, so
+# the sibling `migration_bootstrap` module isn't importable by default. Add it.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from migration_bootstrap import stamp_legacy_db_if_needed  # noqa: E402
 
 config = context.config
 
@@ -43,6 +49,12 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
+        # Stamp legacy create_all() DBs (no alembic_version, tables present)
+        # BEFORE Alembic's own migration transaction — see helper docstring /
+        # 2026-06 incident. The helper commits its own write so the baseline is
+        # durable even when there are no pending migrations to run afterwards.
+        stamp_legacy_db_if_needed(connection)
+
         context.configure(
             connection=connection, target_metadata=target_metadata
         )

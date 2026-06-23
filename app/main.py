@@ -6,7 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from jarvis_settings_client import create_settings_router, create_superuser_auth
 
 from app.config import get_settings
-from app.database import engine, Base
 from app.routes import services_router
 from app.routes.service_registration import create_service_registration_router
 from app.routes.settings_gateway import create_settings_gateway_router
@@ -19,8 +18,11 @@ superuser_auth = create_superuser_auth(_cfg.JARVIS_AUTH_URL)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: create tables if they don't exist
-    Base.metadata.create_all(bind=engine)
+    # Schema is owned solely by Alembic now — the startup entrypoint runs
+    # `alembic upgrade head` before the app boots. We deliberately do NOT call
+    # Base.metadata.create_all() here: it only CREATES missing tables (never
+    # ALTERs), so it silently diverged from the migrations and caused the
+    # 2026-06 services.external_host drift. Alembic is the single source of truth.
     yield
     # Shutdown: nothing to clean up
 
