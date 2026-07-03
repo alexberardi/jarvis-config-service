@@ -1,6 +1,37 @@
-from pydantic import BaseModel, Field
+import re
+
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
+
+
+_BARE_HOST_RE = re.compile(r"[A-Za-z0-9._-]+")
+
+
+def validate_host(v: Optional[str]) -> Optional[str]:
+    """Reject anything that isn't a bare hostname / IP literal.
+
+    A registered ``host`` is handed to every service as a discovery target, so a
+    value carrying a scheme, path, port, credentials, or whitespace
+    (``http://evil``, ``evil/../x``, ``h:1234``, ``u@h``) could redirect callers
+    or smuggle a second URL. Only accept a bare host: letters, digits, ``.``,
+    ``-``, ``_`` — or a ``[…]``-bracketed IPv6 literal. Port/scheme are separate
+    fields; IP-range policy (SSRF) is out of scope for format validation.
+    """
+    if v is None:
+        return v
+    s = v.strip()
+    if s.startswith("[") and s.endswith("]"):
+        inner = s[1:-1]
+        if re.fullmatch(r"[0-9A-Fa-f:.]+", inner):
+            return s
+        raise ValueError("invalid IPv6 host literal")
+    if not _BARE_HOST_RE.fullmatch(s):
+        raise ValueError(
+            "host must be a bare hostname or IP (letters, digits, '.', '-', '_') "
+            "with no scheme, path, port, '@', or whitespace"
+        )
+    return s
 
 
 class ServiceBase(BaseModel):
@@ -10,6 +41,8 @@ class ServiceBase(BaseModel):
     scheme: str = Field(default="http", pattern="^(https?|mqtts?|wss?)$", max_length=10)
     health_path: str = Field(default="/health", max_length=255)
     description: Optional[str] = Field(default=None, max_length=500)
+
+    _v_host = field_validator("host")(validate_host)
 
 
 class ServiceCreate(ServiceBase):
@@ -22,6 +55,8 @@ class ServiceUpdate(BaseModel):
     scheme: Optional[str] = Field(default=None, pattern="^(https?|mqtts?|wss?)$", max_length=10)
     health_path: Optional[str] = Field(default=None, max_length=255)
     description: Optional[str] = Field(default=None, max_length=500)
+
+    _v_host = field_validator("host")(validate_host)
 
 
 class ServiceResponse(ServiceBase):
@@ -112,6 +147,8 @@ class ServiceRegisterItem(BaseModel):
     external_host: Optional[str] = Field(default=None, max_length=255)
     external_port: Optional[int] = Field(default=None, ge=1, le=65535)
 
+    _v_host = field_validator("host", "external_host")(validate_host)
+
 
 class ServiceRegisterRequest(BaseModel):
     services: list[ServiceRegisterItem]
@@ -141,6 +178,8 @@ class HealthProbeRequest(BaseModel):
     port: int = Field(..., ge=1, le=65535)
     health_path: str = Field(default="/health", max_length=255)
     scheme: str = Field(default="http", pattern="^https?$", max_length=5)
+
+    _v_host = field_validator("host")(validate_host)
 
 
 class HealthProbeResponse(BaseModel):
