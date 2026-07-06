@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 import uvicorn
@@ -5,7 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from jarvis_settings_client import create_settings_router, create_superuser_auth
 
-from app.config import get_settings
+from app.config import enforce_secret_security, get_settings
 from app.routes import services_router
 from app.routes.service_registration import create_service_registration_router
 from app.routes.settings_gateway import create_settings_gateway_router
@@ -15,9 +16,13 @@ from app.services.settings_service import get_settings_service
 _cfg = get_settings()
 superuser_auth = create_superuser_auth(_cfg.JARVIS_AUTH_URL)
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    # Placeholder/weak admin token: warn everywhere, refuse to boot in production.
+    enforce_secret_security(get_settings(), logger)
     # Schema is owned solely by Alembic now — the startup entrypoint runs
     # `alembic upgrade head` before the app boots. We deliberately do NOT call
     # Base.metadata.create_all() here: it only CREATES missing tables (never
