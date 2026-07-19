@@ -78,6 +78,12 @@ KNOWN_SERVICES: list[dict[str, str | int]] = [
         "health_path": "/health",
     },
     {
+        "name": "jarvis-phone-gateway",
+        "port": 7713,
+        "description": "AI phone calls (Twilio media gateway) — optional service",
+        "health_path": "/health",
+    },
+    {
         "name": "jarvis-mqtt-broker",
         "port": 1884,
         "scheme": "mqtt",
