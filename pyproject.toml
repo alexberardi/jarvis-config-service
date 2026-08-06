@@ -15,7 +15,7 @@ dependencies = [
     "httpx>=0.26.0",
     "pydantic>=2.5.0",
     "alembic>=1.13.0",
-    "jarvis-settings-client @ git+https://github.com/alexberardi/jarvis-settings-client.git@9902feb",
+    "jarvis-settings-client @ git+https://github.com/alexberardi/jarvis-settings-client.git@402674d",
     "python-dotenv>=1.0.0",
 ]
 
