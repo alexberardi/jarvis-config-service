@@ -84,6 +84,12 @@ KNOWN_SERVICES: list[dict[str, str | int]] = [
         "health_path": "/health",
     },
     {
+        "name": "jarvis-osx-api",
+        "port": 7723,
+        "description": "iMessage/Contacts/Shortcuts bridge (macOS native) — optional service",
+        "health_path": "/health",
+    },
+    {
         "name": "jarvis-mqtt-broker",
         "port": 1884,
         "scheme": "mqtt",
