@@ -42,8 +42,16 @@ def _resolve_url_params(
         effective_host = remote_host or os.getenv("JARVIS_REMOTE_HOST")
         return False, effective_host, True
     if style == UrlStyle.remote:
+        # A caller on another machine must use the PUBLISHED coords, so resolve
+        # against external_host/external_port like `external` does. In bridge
+        # mode host/port hold container coords (auth-api:8000) which mean
+        # nothing off this host; external_host is the "localhost" sentinel that
+        # gets rewritten to effective_host just below.
+        #
+        # Rows registered before external_* existed have them NULL and fall
+        # back to host/port, which is why the backfill migration matters.
         effective_host = remote_host or os.getenv("JARVIS_REMOTE_HOST")
-        return False, effective_host, False
+        return False, effective_host, True
     return style == UrlStyle.dockerized, None, False
 
 
