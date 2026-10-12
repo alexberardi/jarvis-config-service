@@ -18,6 +18,19 @@ def is_placeholder_token(value: str | None) -> bool:
     return (value or "").strip().lower() in PLACEHOLDER_TOKENS
 
 
+def pin_psycopg2(database_url: str) -> str:
+    """Name the psycopg2 driver on a bare ``postgresql://`` URL.
+
+    SQLAlchemy 2.1 made psycopg (v3) the default driver for ``postgresql://``;
+    this service ships psycopg2, so a bare URL would fail to import a driver.
+    The installer and ``.env.example`` both hand out bare URLs, so pin here.
+    URLs that already name a driver (``postgresql+...``) are left alone.
+    """
+    if database_url.startswith("postgresql://"):
+        return database_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    return database_url
+
+
 class Settings:
     # Database URLs
     # DB_URL: used when running in Docker (host.docker.internal)
