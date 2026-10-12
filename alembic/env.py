@@ -7,6 +7,7 @@ from sqlalchemy import pool
 
 from alembic import context
 
+from app.config import pin_psycopg2
 from app.models import Base
 
 # Alembic does not put the script_location (this `alembic/` dir) on sys.path, so
@@ -22,9 +23,14 @@ config = context.config
 # MIGRATIONS_DATABASE_URL (localhost) — preferring that here makes alembic dial the
 # container's own loopback. Host-side flows (run.sh, apply_migrations.sh) already
 # export DATABASE_URL=$MIGRATIONS_DATABASE_URL, so they are unaffected.
-db_url = os.getenv("DATABASE_URL") or os.getenv("MIGRATIONS_DATABASE_URL")
+# alembic.ini's own default is a bare postgresql:// URL, so pin it too.
+db_url = (
+    os.getenv("DATABASE_URL")
+    or os.getenv("MIGRATIONS_DATABASE_URL")
+    or config.get_main_option("sqlalchemy.url")
+)
 if db_url:
-    config.set_main_option("sqlalchemy.url", db_url)
+    config.set_main_option("sqlalchemy.url", pin_psycopg2(db_url))
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
